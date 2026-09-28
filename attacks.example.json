@@ -1,0 +1,12 @@
+{
+  "attacks": [
+    {
+      "name": "Example DDoS Attack",
+      "target": "example.com",
+      "type": "HTTP_FLOOD",
+      "duration": 3600,
+      "threads": 10,
+      "payload": "GET / HTTP/1.1"
+    }
+  ]
+}
