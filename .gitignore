@@ -1,0 +1,74 @@
+# Arquivos de configuração sensíveis
+proxies.json
+proxies.txt
+attacks.json
+ATTACKS_GUIDE.md
+
+# Chaves privadas e credenciais
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+.env
+.env.local
+.env.*.local
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Dependências
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+.docker/
+*.log
+
+# Arquivo temporário estranho (criado acidentalmente)
+C:UserslooksAppDataLocalTempclaudeC--Users-looks-OneDrive-Documentos-portfolio-seguranca-lab-botnetca6a56e3-9e85-4254-aa5e-5417a71485eescratchpadwait_bots.sh
+Dockerfile.mock
+
+# Dados de teste/runtime
+*.db
+*.sqlite
+*.sqlite3
+data/
+logs/
+
+# Configurações de máquina local
+config.local.*
+settings.local.*
